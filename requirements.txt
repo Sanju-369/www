@@ -1,0 +1,6 @@
+streamlit
+groq
+chromadb
+pandas
+openpyxl
+sentence-transformers
