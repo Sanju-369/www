@@ -1,8 +1,8 @@
 import streamlit as st
+import pandas as pd
+from sentence_transformers import SentenceTransformer
 from groq import Groq
 import chromadb
-from sentence_transformers import SentenceTransformer
-import pandas as pd
 
 # Load Excel data
 df = pd.read_excel("Book1.xlsx")
@@ -10,22 +10,21 @@ df.columns = [col.strip() for col in df.columns]
 df.fillna("Not Available", inplace=True)
 
 # Prepare text
-texts1 = [
-    " | ".join([f"{col}: {row[col]}" for col in df.columns])
-    for _, row in df.iterrows()
-]
+texts = [" | ".join([f"{col}: {row[col]}" for col in df.columns]) for _, row in df.iterrows()]
 
-# Initialize ChromaDB and embeddings
+# Setup ChromaDB Lite in-memory
 client = chromadb.Client()
 collection = client.get_or_create_collection("odisha_hospitals")
+
+# Embedding Model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Store to ChromaDB
-for i, text in enumerate(texts1):
+# Index documents
+for i, text in enumerate(texts):
     embedding = model.encode(text).tolist()
     collection.add(documents=[text], embeddings=[embedding], ids=[f"doc_{i}"])
 
-# Groq LLM Setup
+# Setup GROQ
 groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 def ask_llm(question, context):
@@ -41,20 +40,18 @@ def ask_llm(question, context):
 
 def query_hospitals(question):
     query_embedding = model.encode(question).tolist()
-    results = collection.query(query_embeddings=[query_embedding], n_results=5)
-
+    results = collection.query(query_embeddings=[query_embedding], n_results=3)
     if not results["documents"][0]:
         return "No relevant hospital or blood bank information found in the dataset."
-
     context = "\n".join(results["documents"][0])
     return ask_llm(question, context)
 
 # Streamlit UI
 st.title("🏥 Odisha Hospital Info Assistant")
-question = st.text_input("Ask something about hospitals, blood banks, contacts...")
+user_input = st.text_input("Ask something (e.g., Hospitals in Cuttack with blood banks)")
 
-if question:
+if user_input:
     with st.spinner("Thinking..."):
-        response = query_hospitals(question)
+        answer = query_hospitals(user_input)
         st.markdown("### 🤖 Answer")
-        st.write(response)
+        st.write(answer)
