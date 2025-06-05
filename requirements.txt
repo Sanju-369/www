@@ -1,6 +1,9 @@
+%%writefile requirements.txt
 streamlit
 groq
-chromadb
+chromadb==0.4.24
 pandas
 openpyxl
 sentence-transformers
+protobuf==3.20.3
+opentelemetry-exporter-otlp==1.22.0
